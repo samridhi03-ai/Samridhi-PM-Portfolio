@@ -64,8 +64,8 @@ As an AI PM, I focus on:
 ## Connect With Me
 
 - **GitHub** - [View my repositories](https://github.com/yourusername)
-- **LinkedIn** - [Connect with me](https://linkedin.com/in/yourprofile)
-- **Email** - [samridhi@example.com](mailto:samridhi@example.com)
+- **LinkedIn** - (https://linkedin.com/in/samridhi-seth)
+- **Email** - [samridhiseth03@gmail.com)
 
 ## License
 
