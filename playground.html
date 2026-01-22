@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LLM Inference & Fine-Tuning Playground</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --text: #1e293b;
+            --border: #e2e8f0;
+            --success: #16a34a;
+            --error: #dc2626;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        h1, h2, h3 { color: #0f172a; }
+        
+        .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 600px) {
+            .grid { grid-template-columns: 1fr; }
+        }
+
+        label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+        }
+
+        input[type="text"], input[type="password"], textarea, select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            box-sizing: border-box;
+            font-size: 1rem;
+        }
+
+        textarea { min-height: 100px; resize: vertical; }
+
+        .control-group { margin-bottom: 20px; }
+        
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        input[type="range"] { flex-grow: 1; }
+        .val-display {
+            min-width: 45px;
+            text-align: right;
+            font-family: monospace;
+            font-weight: bold;
+        }
+
+        .hint {
+            font-size: 0.8rem;
+            color: #64748b;
+            margin-top: 4px;
+        }
+
+        button {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        button:disabled {
+            background: #94a3b8;
+            cursor: not-allowed;
+        }
+
+        button:hover:not(:disabled) { opacity: 0.9; }
+
+        .status {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            display: none;
+        }
+
+        .status-valid { display: block; background: #f0fdf4; color: var(--success); border: 1px solid #bbf7d0; }
+        .status-error { display: block; background: #fef2f2; color: var(--error); border: 1px solid #fecaca; }
+
+        .preset-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .preset-btn {
+            background: #f1f5f9;
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 8px;
+            font-size: 0.85rem;
+            text-align: center;
+        }
+
+        .preset-btn.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        #output-area {
+            background: #1e293b;
+            color: #f8fafc;
+            padding: 20px;
+            border-radius: 8px;
+            min-height: 150px;
+            white-space: pre-wrap;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .meta-info {
+            font-size: 0.8rem;
+            color: #94a3b8;
+            margin-top: 10px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        footer {
+            margin-top: 50px;
+            padding-top: 30px;
+            border-top: 2px solid var(--border);
+        }
+
+        .edu-section { margin-bottom: 30px; }
+        .edu-section h3 { color: var(--primary); border-left: 4px solid var(--primary); padding-left: 10px; }
+
+        .loader {
+            display: inline-block;
+            width: 18px;
+            height: 18px;
+            border: 2px solid #ffffff;
+            border-radius: 50%;
+            border-top-color: transparent;
+            animation: spin 1s linear infinite;
+            vertical-align: middle;
+            margin-right: 8px;
+            display: none;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>LLM Inference Tuning Playground</h1>
+        <p>Learn how inference controls mimic specialized behavior without actual retraining.</p>
+    </header>
+
+    <section class="card">
+        <h2>🔐 API Key Setup</h2>
+        <div class="control-group">
+            <label for="api-key">Gemini API Key</label>
+            <input type="password" id="api-key" placeholder="Enter your AIza... key">
+            <div class="hint">Your key is used only in this browser and never stored elsewhere.</div>
+        </div>
+        <button id="validate-btn">Validate API Key</button>
+        <div id="api-status" class="status"></div>
+    </section>
+
+    <section class="card">
+        <h2>🧠 Model Selection</h2>
+        <div class="control-group">
+            <label for="model-select">Select Available Model</label>
+            <select id="model-select">
+                <option value="">Validate key to see models...</option>
+            </select>
+            <div class="hint">Note: High-performance models (Pro) might have stricter quotas than Flash models.</div>
+        </div>
+    </section>
+
+    <section class="card">
+        <h2>🎭 Response Style (Behavior Presets)</h2>
+        <div class="preset-grid" id="preset-container">
+            <button class="preset-btn active" data-style="precise">Factual & Precise</button>
+            <button class="preset-btn" data-style="innovative">Innovative Thinker</button>
+            <button class="preset-btn" data-style="funny">Funny Kid (8-10)</button>
+            <button class="preset-btn" data-style="pm">Informed PM</button>
+            <button class="preset-btn" data-style="factual">No-Nonsense Fact Teller</button>
+            <button class="preset-btn" data-style="custom">Custom</button>
+        </div>
+        <p class="hint">Selecting a preset adjusts the sliders and instructions below to mimic a specific "personality."</p>
+    </section>
+
+    <section class="card">
+        <h2>🎛️ Model Controls (Inference Tuning)</h2>
+        <div class="grid">
+            <div class="control-group">
+                <label>Temperature</label>
+                <div class="slider-container">
+                    <input type="range" id="temp-slider" min="0" max="1.5" step="0.1" value="0.1">
+                    <span class="val-display" id="temp-val">0.1</span>
+                </div>
+                <div class="hint">Controls creativity. 0 is robotic/predictable, 1.5 is wild/random.</div>
+            </div>
+            <div class="control-group">
+                <label>Top-P (Nucleus)</label>
+                <div class="slider-container">
+                    <input type="range" id="topp-slider" min="0" max="1" step="0.05" value="1">
+                    <span class="val-display" id="topp-val">1.0</span>
+                </div>
+                <div class="hint">Limits word choice to a cumulative probability. Low P = only high-confidence words.</div>
+            </div>
+            <div class="control-group">
+                <label>Top-K</label>
+                <div class="slider-container">
+                    <input type="range" id="topk-slider" min="1" max="100" step="1" value="40">
+                    <span class="val-display" id="topk-val">40</span>
+                </div>
+                <div class="hint">Only considers the top K most likely words. Low K = very focused.</div>
+            </div>
+            <div class="control-group">
+                <label>Max Tokens</label>
+                <div class="slider-container">
+                    <input type="range" id="max-tokens" min="50" max="2048" step="50" value="512">
+                    <span class="val-display" id="tokens-val">512</span>
+                </div>
+                <div class="hint">Length limit. 1 token is roughly 4 characters or 0.75 words.</div>
+            </div>
+        </div>
+    </section>
+
+    <section class="card">
+        <h2>🧠 Instruction & Prompt</h2>
+        <div class="control-group">
+            <label for="system-prompt">System / Instruction Prompt</label>
+            <textarea id="system-prompt" placeholder="You are a helpful assistant...">You are a precise technical assistant. Answer questions concisely and only use verified facts.</textarea>
+            <div class="hint">This "steers" the model's personality before the user even speaks.</div>
+        </div>
+        <div class="control-group">
+            <label for="user-prompt">User Prompt</label>
+            <textarea id="user-prompt" placeholder="Ask something here...">Explain what a large language model is in two sentences.</textarea>
+        </div>
+        <button id="run-btn" disabled>
+            <span class="loader" id="loader"></span>
+            Run Prompt
+        </button>
+    </section>
+
+    <section class="card">
+        <h2>📤 Model Output</h2>
+        <div id="output-area">Response will appear here...</div>
+        <div class="meta-info">
+            <span id="meta-model">Model: ---</span>
+            <span id="meta-time">Latency: ---</span>
+        </div>
+    </section>
+
+    <footer class="card">
+        <h2>📘 Understanding Fine-Tuning (Simple Explanation)</h2>
+        
+        <div class="edu-section">
+            <h3>What are these sliders?</h3>
+            <p>Imagine the LLM is a giant book of word probabilities. When it predicts the next word:</p>
+            <ul>
+                <li><strong>Temperature:</strong> Like a chef's intuition. Low temp follows the recipe exactly. High temp experiments with spices.</li>
+                <li><strong>Top-P & Top-K:</strong> These are filters. They tell the model: "Only look at the most sensible words and ignore the weird ones."</li>
+            </ul>
+        </div>
+
+        <div class="edu-section">
+            <h3>Why is this NOT "Real" Fine-Tuning?</h3>
+            <p>In this playground, we are doing <strong>Inference Tuning</strong>. We are changing how the model <em>chooses</em> words from its existing brain. We aren't changing the brain itself.</p>
+            <p><strong>Real Fine-Tuning</strong> is like sending the model to specialized medical school. You actually update the internal "weights" (the brain) by showing it thousands of specific examples. It is permanent, hardware-intensive, and expensive.</p>
+        </div>
+
+        <div class="edu-section">
+            <h3>The Hierarchy of Control</h3>
+            <ol>
+                <li><strong>Prompt Engineering:</strong> Just asking the question better.</li>
+                <li><strong>System Instructions:</strong> Giving the model a "role" (e.g., "You are a pirate"). This mimics the <em>feel</em> of fine-tuning.</li>
+                <li><strong>Inference Tuning:</strong> Adjusting Temperature/Top-P to change the "vibe."</li>
+                <li><strong>Fine-Tuning:</strong> Actually retraining the model on your data.</li>
+            </ol>
+        </div>
+
+        <div class="edu-section" style="background: #fff7ed; padding: 15px; border-radius: 8px; border: 1px solid #ffedd5;">
+            <strong>⚠️ Security Note:</strong> API keys are like passwords. If you share this file or paste your key into a sketchy website, others can use your credits.
+        </div>
+    </footer>
+</div>
+
+<script>
+    // Configuration & Presets
+    const STYLES = {
+        precise: {
+            temp: 0.1, topp: 0.9, topk: 20, 
+            sys: "You are a precise technical assistant. Answer questions concisely and only use verified facts. Do not use flowery language."
+        },
+        innovative: {
+            temp: 1.2, topp: 0.95, topk: 60, 
+            sys: "You are a creative visionary. Connect unrelated ideas and suggest wild, futuristic possibilities. Use metaphors and expressive language."
+        },
+        funny: {
+            temp: 0.9, topp: 1.0, topk: 50, 
+            sys: "You are a funny 9-year-old kid. Use silly slang, emojis, and tell a joke related to the topic. Be very energetic!"
+        },
+        pm: {
+            temp: 0.7, topp: 0.8, topk: 40, 
+            sys: "You are an experienced Product Manager. Answer questions with business impact, KPIs, and 'user stories' in mind. Be professional but encouraging."
+        },
+        factual: {
+            temp: 0.0, topp: 0.1, topk: 1, 
+            sys: "You are a robotic fact-checker. Provide only raw data and direct answers. No personality. No greetings."
+        },
+        custom: {
+            temp: 0.7, topp: 1.0, topk: 40, 
+            sys: "You are a helpful AI assistant."
+        }
+    };
+
+    // DOM Elements
+    const apiKeyInput = document.getElementById('api-key');
+    const validateBtn = document.getElementById('validate-btn');
+    const apiStatus = document.getElementById('api-status');
+    const modelSelect = document.getElementById('model-select');
+    const runBtn = document.getElementById('run-btn');
+    const loader = document.getElementById('loader');
+    const outputArea = document.getElementById('output-area');
+    const systemPrompt = document.getElementById('system-prompt');
+    const userPrompt = document.getElementById('user-prompt');
+
+    // Sync Sliders
+    const sliders = ['temp-slider', 'topp-slider', 'topk-slider', 'max-tokens'];
+    const displays = ['temp-val', 'topp-val', 'topk-val', 'tokens-val'];
+
+    sliders.forEach((id, idx) => {
+        const el = document.getElementById(id);
+        const disp = document.getElementById(displays[idx]);
+        el.addEventListener('input', () => {
+            disp.textContent = el.value;
+        });
+    });
+
+    // Preset Logic
+    document.getElementById('preset-container').addEventListener('click', (e) => {
+        if (e.target.classList.contains('preset-btn')) {
+            document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+            e.target.classList.add('active');
+            
+            const style = STYLES[e.target.dataset.style];
+            document.getElementById('temp-slider').value = style.temp;
+            document.getElementById('temp-val').textContent = style.temp;
+            document.getElementById('topp-slider').value = style.topp;
+            document.getElementById('topp-val').textContent = style.topp;
+            document.getElementById('topk-slider').value = style.topk;
+            document.getElementById('topk-val').textContent = style.topk;
+            systemPrompt.value = style.sys;
+        }
+    });
+
+    // API Key Validation
+    validateBtn.addEventListener('click', async () => {
+        const key = apiKeyInput.value.trim();
+        if (!key) {
+            showStatus("Please enter an API key.", "error");
+            return;
+        }
+
+        validateBtn.disabled = true;
+        showStatus("Validating and fetching models...", "valid");
+
+        try {
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${key}`);
+            const data = await response.json();
+
+            if (data.error) {
+                throw new Error(data.error.message || "Invalid API Key");
+            }
+
+            const models = data.models.filter(m => m.supportedGenerationMethods.includes('generateContent'));
+            
+            modelSelect.innerHTML = '';
+            models.forEach(m => {
+                const opt = document.createElement('option');
+                opt.value = m.name;
+                opt.textContent = m.displayName || m.name.split('/').pop();
+                modelSelect.appendChild(opt);
+            });
+
+            const flash = models.find(m => m.name.includes('flash'));
+            if (flash) modelSelect.value = flash.name;
+
+            showStatus("✅ API Key Valid! Models loaded.", "valid");
+            runBtn.disabled = false;
+
+        } catch (err) {
+            showStatus("❌ Validation Failed: " + err.message, "error");
+            runBtn.disabled = true;
+        } finally {
+            validateBtn.disabled = false;
+        }
+    });
+
+    function showStatus(msg, type) {
+        apiStatus.textContent = msg;
+        apiStatus.className = 'status status-' + type;
+    }
+
+    // Run Prompt Logic
+    runBtn.addEventListener('click', async () => {
+        const key = apiKeyInput.value.trim();
+        const model = modelSelect.value;
+        const prompt = userPrompt.value.trim();
+        
+        if (!prompt) {
+            alert("Please enter a prompt!");
+            return;
+        }
+
+        outputArea.textContent = "Processing...";
+        runBtn.disabled = true;
+        loader.style.display = 'inline-block';
+        const startTime = Date.now();
+
+        try {
+            const body = {
+                contents: [
+                    { role: "user", parts: [{ text: `INSTRUCTIONS: ${systemPrompt.value}\n\nUSER QUESTION: ${prompt}` }] }
+                ],
+                generationConfig: {
+                    temperature: parseFloat(document.getElementById('temp-slider').value),
+                    topP: parseFloat(document.getElementById('topp-slider').value),
+                    topK: parseInt(document.getElementById('topk-slider').value),
+                    maxOutputTokens: parseInt(document.getElementById('max-tokens').value),
+                }
+            };
+
+            let response = await fetch(`https://generativelanguage.googleapis.com/v1beta/${model}:generateContent?key=${key}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+
+            let result = await response.json();
+
+            // FALLBACK LOGIC
+            if (!response.ok || result.error) {
+                const fallbackModel = "models/gemini-1.5-flash"; 
+                response = await fetch(`https://generativelanguage.googleapis.com/v1beta/${fallbackModel}:generateContent?key=${key}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+                result = await response.json();
+                
+                if (!response.ok) throw new Error(result.error?.message || "Generation failed");
+                document.getElementById('meta-model').textContent = `Model: ${fallbackModel} (Fallback Used)`;
+            } else {
+                document.getElementById('meta-model').textContent = `Model: ${model}`;
+            }
+
+            const text = result.candidates[0].content.parts[0].text;
+            outputArea.textContent = text;
+            
+            const duration = ((Date.now() - startTime) / 1000).toFixed(2);
+            document.getElementById('meta-time').textContent = `Latency: ${duration}s`;
+
+        } catch (err) {
+            outputArea.textContent = `Error: ${err.message}\n\nSuggestions:\n1. Check your quota or API key.\n2. Try a different model.\n3. Verify your internet connection.`;
+        } finally {
+            runBtn.disabled = false;
+            loader.style.display = 'none';
+        }
+    });
+</script>
+
+</body>
+</html>
